@@ -104,27 +104,39 @@ func change_online_scene(
 	
 	var sha1_requester = HTTPRequest.new()
 	add_child(sha1_requester)
+	sha1_requester.timeout = 10.0
 	sha1_requester.request(sha1_url)
 	var result = await sha1_requester.request_completed
+	remove_child(sha1_requester)
+	sha1_requester.queue_free()
+	
 	if result[0] != HTTPRequest.RESULT_SUCCESS:
-		push_error("Failed to download sha1 from '%s', fallback to default" % sha1_url)
-		return change_scene(default_scene_path)
+		if FileAccess.file_exists(pck_path):
+			push_error("Failed to download sha1 from '%s', local pck found ('%s') , fallback to local" % [sha1_url, pck_path])
+			return _change_pck_scene(pck_path, scene_path)
+		else:
+			push_error("Failed to download sha1 from '%s', no local pck found ('%s') , fallback to default" % [sha1_url, pck_path])
+			return change_scene(default_scene_path)
 	
 	var sha1_body = result[3] as PackedByteArray
 	var sha1 = sha1_body.get_string_from_utf8()
 	
 	var current_sha1 = FileAccess.get_file_as_string(sha1_path)
-	if current_sha1 != sha1 and not await _download_pck(pck_url, pck_path):
-		push_error("Failed to download pck from '%s', fallback to default" % pck_url)
-		return change_scene(default_scene_path)
-	
-	var sha1_file = FileAccess.open(sha1_path, FileAccess.WRITE)
-	sha1_file.store_string(sha1) # Update sha1, even if nothing has changed, because it's easier ahaha
+	if current_sha1 != sha1:
+		print("New pck found")
+		if not await _download_pck(pck_url, pck_path):
+			push_error("Failed to download pck from '%s', fallback to default" % pck_url)
+			return change_scene(default_scene_path)
+		print("New pck downloaded")
+		
+		var sha1_file = FileAccess.open(sha1_path, FileAccess.WRITE)
+		sha1_file.store_string(sha1) # Update sha1, even if nothing has changed, because it's easier ahaha
 	
 	_change_pck_scene(pck_path, scene_path)
 
 
 func _change_pck_scene(pck_path: String, scene_path: String) -> void:
+	print("Load resource path '%s'" % pck_path)
 	var succeeded = ProjectSettings.load_resource_pack(pck_path)
 	if not succeeded:
 		push_error("Failed to load resource pack '%s'" % pck_path)
@@ -134,9 +146,13 @@ func _change_pck_scene(pck_path: String, scene_path: String) -> void:
 func _download_pck(url: String, into: String) -> bool:
 	var pck_requester = HTTPRequest.new()
 	add_child(pck_requester)
+	pck_requester.timeout = 10.0
 	pck_requester.download_file = into
 	pck_requester.request(url)
 	var result = await pck_requester.request_completed
+	remove_child(pck_requester)
+	pck_requester.queue_free()
+	
 	if result[0] != HTTPRequest.RESULT_SUCCESS:
 		return false
 	return true
