@@ -6,12 +6,11 @@
 ##
 ## Typical usage:
 ## [codeblock]
-##     SceneLoader.change_scene("res://scenes/game.tscn")
-##
-##     # Then call switch() once you are ready (e.g. after a transition)
-##     await SceneLoader.load_finished
-##     await my_transition.play_outro()
-##     SceneLoader.switch()
+## SceneLoader.change_scene("res://scenes/game.tscn")
+## # Then call switch() once you are ready (e.g. after a transition)
+## await SceneLoader.load_finished
+## await my_transition.play_outro()
+## SceneLoader.switch()
 ## [/codeblock]
 extends Node
 
